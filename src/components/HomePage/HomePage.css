@@ -1,0 +1,45 @@
+.customBtn {
+  background-color: #9caf88 !important; /* Sage green */
+  border-color: #9caf88 !important;
+  color: white !important;
+}
+
+.customBtn:hover {
+  background-color: #7a8a67 !important; /* Darker sage for hover */
+  border-color: #7a8a67 !important;
+  color: white !important;
+}
+
+.photoCollage {
+  position: relative;
+  width: clamp(320px, 90vw, 500px);
+  height: clamp(200px, 50vw, 280px);
+  margin: 0 auto;
+}
+
+.photo {
+  position: absolute;
+  width: clamp(110px, 35%, 180px);
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.photo1 {
+  top: 15%;
+  left: 5%;
+  transform: rotate(-5deg);
+}
+
+.photo2 {
+  top: 0;
+  left: 33%;
+  z-index: 1;
+}
+
+.photo3 {
+  top: 15%;
+  left: 61%;
+  transform: rotate(5deg);
+}

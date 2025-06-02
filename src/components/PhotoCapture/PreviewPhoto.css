@@ -1,0 +1,11 @@
+.customBtn {
+  background-color: #9caf88 !important; /* Sage green */
+  border-color: #9caf88 !important;
+  color: white !important;
+}
+
+.customBtn:hover {
+  background-color: #7a8a67 !important; /* Darker sage for hover */
+  border-color: #7a8a67 !important;
+  color: white !important;
+}
