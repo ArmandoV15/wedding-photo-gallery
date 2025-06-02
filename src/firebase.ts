@@ -4,7 +4,7 @@ import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCwks-8kJDhxyVz86lEDPEUolSLWJ7OScI",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "wedding-photo-app-f2500.firebaseapp.com",
   projectId: "wedding-photo-app-f2500",
   storageBucket: "wedding-photo-app-f2500.firebasestorage.app",
