@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Container, Image, Spinner } from "react-bootstrap";
+import { Button, Container, Image, Spinner, Ratio } from "react-bootstrap";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -8,6 +8,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 interface LocationState {
   file: File;
   previewUrl: string;
+  fileType: string;
 }
 
 const SageSpinner = () => (
@@ -25,8 +26,6 @@ const PreviewPhoto = () => {
   const navigate = useNavigate();
   const state = location.state as LocationState | undefined;
   const [loading, setLoading] = useState(false);
-
-  const imageUrl = (location.state as { imageUrl?: string })?.imageUrl;
 
   if (!state || !state.file || !state.previewUrl) {
     return <p>No photo to preview.</p>;
@@ -50,9 +49,10 @@ const PreviewPhoto = () => {
       const url = await getDownloadURL(storageRef);
 
       // Save metadata in Firestore
-      await addDoc(collection(db, "photos"), {
+      await addDoc(collection(db, "wedding-media-urls"), {
         url,
         name: state.file.name,
+        fileType: state.fileType,
         createdAt: serverTimestamp(),
       });
 
@@ -69,13 +69,24 @@ const PreviewPhoto = () => {
   return (
     <Container className="text-center mt-5">
       <h2>Moment Preview</h2>
-      <Image
-        src={state.previewUrl}
-        fluid
-        rounded
-        className="shadow my-4"
-        style={{ maxHeight: "80vh" }}
-      />
+      {state.fileType === "video" ? (
+        <Ratio aspectRatio="16x9" className="mb-4">
+          <video
+            src={state.previewUrl}
+            controls
+            className="w-100 h-100 rounded shadow"
+          />
+        </Ratio>
+      ) : (
+        <Image
+          src={state.previewUrl}
+          fluid
+          rounded
+          className="shadow my-4"
+          style={{ maxHeight: "80vh" }}
+        />
+      )}
+
       <div>
         {loading ? (
           <SageSpinner />
