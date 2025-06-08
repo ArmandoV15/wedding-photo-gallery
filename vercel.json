@@ -1,13 +1,3 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/src/components/HomePage/HomePage.tsx" },
-    {
-      "source": "/preview-photo",
-      "destination": "/src/components/PhotoCapture/PreviewPhoto.tsx"
-    },
-    {
-      "source": "/photo-gallery",
-      "destination": "/src/components/PhotoGallery/PhotoGallery.tsx"
-    }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
 }
