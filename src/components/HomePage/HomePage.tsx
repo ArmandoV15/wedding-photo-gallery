@@ -17,16 +17,18 @@ const HomePage = () => {
   };
 
   const handleLibrarySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      navigate("/preview-photo", {
-        state: {
-          file: file,
-          previewUrl: URL.createObjectURL(file),
-          fileType: file.type.startsWith("video/") ? "video" : "image",
-        },
-      });
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const mediaArray = Array.from(files).map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      fileType: file.type.startsWith("video/") ? "video" : "image",
+    }));
+
+    navigate("/preview-photo", {
+      state: { media: mediaArray },
+    });
   };
 
   useEffect(() => {
@@ -36,12 +38,10 @@ const HomePage = () => {
         const cached = localStorage.getItem(cacheKey);
 
         if (cached) {
-          // Use cached URLs immediately
           setImageUrls(JSON.parse(cached));
           return;
         }
 
-        // Start of request to Storage if needed
         const folderRef = ref(storage, "home-page/");
         const result = await listAll(folderRef);
 
@@ -49,9 +49,7 @@ const HomePage = () => {
           result.items.map((itemRef) => getDownloadURL(itemRef))
         );
 
-        // Save URLs to localStorage
         localStorage.setItem(cacheKey, JSON.stringify(urls));
-
         setImageUrls(urls);
       } catch (error) {
         console.error("Error fetching images:", error);
@@ -79,6 +77,7 @@ const HomePage = () => {
         type="file"
         accept="image/*,video/*"
         ref={libraryInputRef}
+        multiple
         onChange={handleLibrarySelect}
         style={{ display: "none" }}
       />

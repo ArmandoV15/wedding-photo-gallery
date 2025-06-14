@@ -1,14 +1,27 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Container, Image, Spinner, Ratio } from "react-bootstrap";
+import {
+  Button,
+  Container,
+  Image,
+  Spinner,
+  Ratio,
+  Row,
+  Col,
+} from "react-bootstrap";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import "./PreviewPhoto.css";
 
-interface LocationState {
+interface MediaItem {
   file: File;
   previewUrl: string;
   fileType: string;
+}
+
+interface LocationState {
+  media: MediaItem[];
 }
 
 const SageSpinner = () => (
@@ -24,22 +37,22 @@ const SageSpinner = () => (
 const PreviewPhoto = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state as LocationState | undefined;
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>(
+    (location.state as LocationState | undefined)?.media || []
+  );
   const [loading, setLoading] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
 
-  if (!state || !state.file || !state.previewUrl) {
-    return <p>No photo to preview.</p>;
+  if (mediaItems.length === 0) {
+    navigate("/");
   }
-
-  const generateThumbnail = (): Promise<Blob> => {
+  const generateThumbnail = (index: number): Promise<Blob> => {
     return new Promise((resolve, reject) => {
-      if (!videoRef.current) return reject("Video ref not set");
+      const video = videoRefs.current[index];
+      if (!video) return reject("Video ref not found");
 
-      const video = videoRef.current;
       const canvas = document.createElement("canvas");
-
-      video.currentTime = 1; // seek to 1 second to capture frame
+      video.currentTime = 1;
 
       video.onseeked = () => {
         canvas.width = video.videoWidth;
@@ -48,20 +61,15 @@ const PreviewPhoto = () => {
         if (!ctx) return reject("Canvas context error");
 
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
         canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject("Failed to create thumbnail blob");
-          },
+          (blob) =>
+            blob ? resolve(blob) : reject("Failed to create thumbnail blob"),
           "image/jpeg",
           0.75
         );
       };
 
-      // In case video metadata is not loaded yet
       if (video.readyState >= 2) {
-        // metadata loaded, trigger onseeked manually
         video.currentTime = 1;
       } else {
         video.onloadedmetadata = () => {
@@ -71,48 +79,41 @@ const PreviewPhoto = () => {
     });
   };
 
-  const uploadPhoto = async () => {
+  const uploadMedia = async () => {
     setLoading(true);
-    if (!state.file) return;
 
     try {
-      let thumbnailUrl = "";
+      for (let i = 0; i < mediaItems.length; i++) {
+        const { file, fileType } = mediaItems[i];
+        let thumbnailUrl = "";
 
-      if (state.fileType === "video") {
-        // Generate thumbnail
-        const thumbBlob = await generateThumbnail();
+        if (fileType === "video") {
+          const thumbBlob = await generateThumbnail(i);
+          const thumbRef = ref(
+            storage,
+            `wedding-media/thumbnails/${Date.now()}_${file.name}.jpg`
+          );
+          await uploadBytes(thumbRef, thumbBlob);
+          thumbnailUrl = await getDownloadURL(thumbRef);
+        }
 
-        // Upload thumbnail first
-        const thumbRef = ref(
+        const fileRef = ref(
           storage,
-          `wedding-media/thumbnails/${Date.now()}_${state.file.name}.jpg`
+          `wedding-media/${Date.now()}_${file.name}`
         );
-        await uploadBytes(thumbRef, thumbBlob);
-        thumbnailUrl = await getDownloadURL(thumbRef);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+
+        await addDoc(collection(db, "wedding-media-urls"), {
+          url,
+          name: file.name,
+          fileType,
+          thumbnailUrl: thumbnailUrl || null,
+          createdAt: serverTimestamp(),
+        });
       }
 
-      // Create a unique file path
-      const storageRef = ref(
-        storage,
-        `wedding-media/${Date.now()}_${state.file.name}`
-      );
-
-      // Upload file
-      await uploadBytes(storageRef, state.file);
-
-      // Get URL
-      const url = await getDownloadURL(storageRef);
-
-      // Save metadata in Firestore
-      await addDoc(collection(db, "wedding-media-urls"), {
-        url,
-        name: state.file.name,
-        fileType: state.fileType,
-        thumbnailUrl: thumbnailUrl || null,
-        createdAt: serverTimestamp(),
-      });
-
-      alert("Photo uploaded successfully!");
+      alert("All media uploaded successfully!");
       navigate("/");
     } catch (error) {
       console.error("Upload failed", error);
@@ -123,49 +124,65 @@ const PreviewPhoto = () => {
   };
 
   return (
-    <Container className="text-center mt-5">
-      <h2>Moment Preview</h2>
-      {state.fileType === "video" ? (
-        <>
-        {/* Hidden video used to generate thumbnail */}
-        <video
-          ref={videoRef}
-          src={state.previewUrl}
-          style={{ display: "none" }}
-          preload="metadata"
-        />
-        <Ratio aspectRatio="16x9" className="mb-4">
-          <video
-            src={state.previewUrl}
-            controls
-            className="w-100 h-100 rounded shadow"
-          />
-        </Ratio>
-      </>
-      ) : (
-        <Image
-          src={state.previewUrl}
-          fluid
-          rounded
-          className="shadow my-4"
-          style={{ maxHeight: "80vh" }}
-        />
-      )}
+    <>
+      <div className="stickyButtonWrapper">
+        <Button
+          variant="secondary"
+          className="shadow-sm"
+          onClick={() => navigate("/")}
+        >
+          ← Back
+        </Button>
 
-      <div>
-        {loading ? (
-          <SageSpinner />
-        ) : (
+        {!loading ? (
           <Button
-            className="customBtn"
-            onClick={uploadPhoto}
-            disabled={loading}
+            variant="success"
+            onClick={uploadMedia}
+            className="shadow customBtn"
           >
-            Upload
+            Upload All
           </Button>
+        ) : (
+          <SageSpinner />
         )}
       </div>
-    </Container>
+      <Container className="text-center mt-2">
+        <h2>Moments Preview</h2>
+        <Row className="my-4">
+          {mediaItems.map((item, index) => (
+            <Col xs={6} md={6} key={index} className="mb-4 position-relative">
+              {item.fileType === "video" ? (
+                <>
+                  <video
+                    ref={(el) => {
+                      videoRefs.current[index] = el;
+                    }}
+                    src={item.previewUrl}
+                    style={{ display: "none" }}
+                    preload="metadata"
+                  />
+                  <Ratio aspectRatio="16x9">
+                    <video
+                      src={item.previewUrl}
+                      controls
+                      className="w-100 h-100 rounded shadow"
+                    />
+                  </Ratio>
+                </>
+              ) : (
+                <Image
+                  src={item.previewUrl}
+                  fluid
+                  rounded
+                  className="shadow"
+                  style={{ maxHeight: "60vh" }}
+                />
+              )}
+            </Col>
+          ))}
+        </Row>
+      </Container>
+    </>
   );
 };
 
