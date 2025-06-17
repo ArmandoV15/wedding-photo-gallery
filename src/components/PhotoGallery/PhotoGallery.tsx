@@ -121,6 +121,9 @@ const PhotoGallery = () => {
       </Row>
 
       <Modal show={showModal} onHide={handleClose} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Preview</Modal.Title>
+        </Modal.Header>
         <Modal.Body className="p-0">
           {activeMedia &&
             (activeMedia.fileType === "video" ? (
@@ -138,11 +141,7 @@ const PhotoGallery = () => {
               />
             ))}
         </Modal.Body>
-        <Modal.Footer className="justify-content-center">
-          <Button variant="secondary" onClick={handleClose}>
-            Close
-          </Button>
-        </Modal.Footer>
+        <Modal.Footer className="justify-content-center"></Modal.Footer>
       </Modal>
     </div>
   );

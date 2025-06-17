@@ -8,6 +8,7 @@ import {
   Ratio,
   Row,
   Col,
+  Modal,
 } from "react-bootstrap";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "../../firebase";
@@ -25,11 +26,7 @@ interface LocationState {
 }
 
 const SageSpinner = () => (
-  <Spinner
-    animation="border"
-    role="status"
-    style={{ color: "#9caf88" /* sage color */ }}
-  >
+  <Spinner animation="border" role="status" style={{ color: "#9caf88" }}>
     <span className="visually-hidden">Uploading...</span>
   </Spinner>
 );
@@ -41,11 +38,18 @@ const PreviewPhoto = () => {
     (location.state as LocationState | undefined)?.media || []
   );
   const [loading, setLoading] = useState(false);
+  const [modalMedia, setModalMedia] = useState<MediaItem | null>(null);
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
 
-  if (mediaItems.length === 0) {
-    navigate("/");
-  }
+  useEffect(() => {
+    if (mediaItems.length === 0) navigate("/");
+  }, [mediaItems, navigate]);
+
+  const handleDelete = (index: number) => {
+    setMediaItems((prev) => prev.filter((_, i) => i !== index));
+    delete videoRefs.current[index];
+  };
+
   const generateThumbnail = (index: number): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const video = videoRefs.current[index];
@@ -81,7 +85,6 @@ const PreviewPhoto = () => {
 
   const uploadMedia = async () => {
     setLoading(true);
-
     try {
       for (let i = 0; i < mediaItems.length; i++) {
         const { file, fileType } = mediaItems[i];
@@ -123,6 +126,14 @@ const PreviewPhoto = () => {
     }
   };
 
+  const handlePreview = (item: MediaItem) => {
+    setModalMedia(item);
+  };
+
+  const handleCloseModal = () => {
+    setModalMedia(null);
+  };
+
   return (
     <>
       <div className="stickyButtonWrapper">
@@ -150,38 +161,63 @@ const PreviewPhoto = () => {
         <h2>Moments Preview</h2>
         <Row className="my-4">
           {mediaItems.map((item, index) => (
-            <Col xs={6} md={6} key={index} className="mb-4 position-relative">
-              {item.fileType === "video" ? (
-                <>
-                  <video
-                    ref={(el) => {
-                      videoRefs.current[index] = el;
-                    }}
-                    src={item.previewUrl}
-                    style={{ display: "none" }}
-                    preload="metadata"
-                  />
-                  <Ratio aspectRatio="16x9">
+            <Col xs={6} md={6} key={index} className="mb-4">
+              <div className="position-relative">
+                <Button
+                  variant="dark"
+                  size="sm"
+                  className="deleteBtn rounded-circle z-3"
+                  onClick={() => handleDelete(index)}
+                >
+                  ×
+                </Button>
+
+                {item.fileType === "video" ? (
+                  <>
                     <video
+                      ref={(el) => {
+                        videoRefs.current[index] = el;
+                      }}
                       src={item.previewUrl}
-                      controls
-                      className="w-100 h-100 rounded shadow"
+                      style={{ display: "none" }}
+                      preload="metadata"
+                    />
+                    <Ratio aspectRatio="1x1">
+                      <video
+                        src={item.previewUrl}
+                        controls
+                        className="mediaContent"
+                      />
+                    </Ratio>
+                  </>
+                ) : (
+                  <Ratio aspectRatio="1x1">
+                    <Image
+                      src={item.previewUrl}
+                      className="mediaContent"
+                      onClick={() => handlePreview(item)}
                     />
                   </Ratio>
-                </>
-              ) : (
-                <Image
-                  src={item.previewUrl}
-                  fluid
-                  rounded
-                  className="shadow"
-                  style={{ maxHeight: "60vh" }}
-                />
-              )}
+                )}
+              </div>
             </Col>
           ))}
         </Row>
       </Container>
+
+      <Modal show={!!modalMedia} onHide={handleCloseModal} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Preview</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center">
+          <Image
+            src={modalMedia?.previewUrl}
+            fluid
+            className="w-100"
+            style={{ maxHeight: "70vh", objectFit: "contain" }}
+          />
+        </Modal.Body>
+      </Modal>
     </>
   );
 };
